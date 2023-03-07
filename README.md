@@ -21,3 +21,7 @@ TIP: Activating virtual environment using alias
 
     Alternative Powershell 
     - "nano $profile" to include: "set-alias -Name pyact -Value .venv/Scripts/activate"
+
+## Prerequisit 3: Seting up Git LFS
+- download from: https://git-lfs.com/
+- run "git lfs install"
