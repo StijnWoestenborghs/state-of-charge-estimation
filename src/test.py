@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import numpy as np
 import pandas as pd
 import scipy.io as sio
@@ -19,7 +20,20 @@ def read_mat_file(file):
     return df
 
 
-def load_model(experiment_path):
+def symmetric_derivative(y, t):
+    """
+    Calculates the symmetric difference quotient.
+    """
+    y, t = np.array(y), np.array(t)
+    
+    delta_2t = np.diff(t)[1:] + np.diff(t)[:-1]
+    forward_step = y[2:]
+    backward_step = y[:-2]
+    
+    return  np.concatenate(([np.nan], (forward_step - backward_step)/delta_2t, [np.nan]))
+
+
+def load_model(experiment_path, n_inputs):
     # extract model from experiment
     torch_models = [file for file in os.listdir(experiment_path) if file.endswith('.pt')]
     if len(torch_models) < 1: 
@@ -32,7 +46,7 @@ def load_model(experiment_path):
         model_path = experiment_path + '/' + torch_models[0]
 
     # loading model
-    model = Net(n_inputs=4) # TODO: make agnostic
+    model = Net(n_inputs=n_inputs)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -65,8 +79,12 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
 if __name__ == "__main__":
     
     # Load model
-    EXPERIMENT_TOTEST = "panasonic-baseline-0.0.1"
-    model = load_model(experiment_path=f"./logs/{EXPERIMENT_TOTEST}")
+    EXPERIMENT_TOTEST = "panasonic-features-0.0.2"
+    features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10', 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad']
+    target = ['SoC']
+    with open(f"./logs/{EXPERIMENT_TOTEST}/config.json", 'r') as f:
+        config = json.load(f)
+    model = load_model(experiment_path=f"./logs/{EXPERIMENT_TOTEST}", n_inputs=len(features))
     
     #TODO: Same as in preprocess and feature selection (make seperate stage and save preprocessed drive cycle files per experiment)
     
@@ -97,14 +115,43 @@ if __name__ == "__main__":
             # Assumption: All test were started at an initial 100% SoC
             df_file["SoC"] = (2.9 + df_file['Ah'])/2.9
             
-            # Moving Average (window of 400 timesteps - see paper)
+            # Moving Averages
+            df_file["Voltage_MA1000"] = df_file["Voltage"].rolling(1000,min_periods=1).mean()
+            df_file["Current_MA1000"] = df_file["Current"].rolling(1000,min_periods=1).mean()
             df_file["Voltage_MA400"] = df_file["Voltage"].rolling(400,min_periods=1).mean()
             df_file["Current_MA400"] = df_file["Current"].rolling(400,min_periods=1).mean()
+            df_file["Voltage_MA200"] = df_file["Voltage"].rolling(200,min_periods=1).mean()
+            df_file["Current_MA200"] = df_file["Current"].rolling(200,min_periods=1).mean()
+            df_file["Voltage_MA100"] = df_file["Voltage"].rolling(100,min_periods=1).mean()
+            df_file["Current_MA100"] = df_file["Current"].rolling(100,min_periods=1).mean()
+            df_file["Voltage_MA50"] = df_file["Voltage"].rolling(50,min_periods=1).mean()
+            df_file["Current_MA50"] = df_file["Current"].rolling(50,min_periods=1).mean()
+            df_file["Voltage_MA10"] = df_file["Voltage"].rolling(10,min_periods=1).mean()
+            df_file["Current_MA10"] = df_file["Current"].rolling(10,min_periods=1).mean()
 
-            # Feature selection: remove obsolete columns
-            time_from_start = np.array(df_file['Time'] - df_file['Time'][0])
-            df_file = df_file.drop(['TimeStamp', 'Time', 'Current', 'Ah', 'Wh', 'Power', 'Chamber_Temp_degC'], axis=1)
+            # Power
+            df_file["Power"] = df_file["Voltage"]*df_file["Current"]
 
+            # Derivatives
+            df_file["Voltage_grad"] = symmetric_derivative(df_file["Voltage"], df_file["Time"])
+            df_file["Current_grad"] = symmetric_derivative(df_file["Current"], df_file["Time"])
+            df_file["Battery_Temp_grad"] = symmetric_derivative(df_file["Battery_Temp_degC"], df_file["Time"])
+            df_file["Power_grad"] = symmetric_derivative(df_file["Power"], df_file["Time"])
+            
+            # Feature selection
+            df_file = df_file.drop(['Chamber_Temp_degC'], axis=1)
+            df_file.drop(df_file.tail(1).index, inplace=True)
+            df_file.drop(df_file.head(1).index, inplace=True)
+            time_from_start = np.array(df_file['Time']) - df_file['Time'].values[0]
+            df_file = df_file[features + target]
+
+            # Normalization
+            with open(f"./data/{config['norm_basis']}", 'r') as f:
+                norm_basis = json.load(f)                    
+            for feature in norm_basis.keys():
+                minmax = norm_basis[feature]
+                df_file[feature] = (df_file[feature] - minmax[0])/(minmax[1] - minmax[0])           
+            
             # Evaluate performance against model
             X_test = torch.tensor(df_file.drop(columns=['SoC']).values, dtype=torch.float32)
             y_test = torch.tensor(df_file['SoC'].values, dtype=torch.float32).reshape(-1, 1)
@@ -124,7 +171,7 @@ if __name__ == "__main__":
         plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=f"./logs/{EXPERIMENT_TOTEST}")
     
     # Feature importance analysis
-    df = pd.read_csv(f"./data/data_panasonic_0.0.1.csv", index_col=0)
+    df = pd.read_csv(f"./data/{config['data_file']}", index_col=0)
     df = df.sample(frac=1, random_state=1).reset_index(drop=True)
     X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torch.float32)
     

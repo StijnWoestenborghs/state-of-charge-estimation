@@ -1,11 +1,12 @@
 {
-    "experiment_name": "panasonic-baseline-0.0.1",
-    "data_file": "data_panasonic_0.0.1.csv",
+    "experiment_name": "panasonic-features-0.0.2",
+    "data_file": "data_panasonic_0.0.2.csv",
+    "norm_basis": "norm_basis_0.0.2.json",
     "validation_pct": 0.2,
 
-    "epochs": 10,
+    "epochs": 30,
     "batch_size": 64,
-    "lr": 0.00002,
+    "lr": 0.00001,
     
     "log_freq": 20
 }
