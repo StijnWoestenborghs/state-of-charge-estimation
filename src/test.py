@@ -5,6 +5,7 @@ import pandas as pd
 import scipy.io as sio
 import matplotlib.pyplot as plt
 
+import shap
 import torch
 
 from src.main import Net
@@ -37,7 +38,7 @@ def load_model(experiment_path):
     return model
 
 
-def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp):
+def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
     fig, axs = plt.subplots(len(y_tests), 2, figsize=(16, 8), sharex=True)
     fig.suptitle(f'Temperature ({temp}), MAE: {round(np.mean(MAEs)*100, 3)}%', fontsize="x-large")
     for y_test, y_pred, time, MAE, label, ax in zip(y_tests, y_preds, times, MAEs, labels, axs):
@@ -53,7 +54,11 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp):
 
     ax[0].set_xlabel('Time (s)')
     ax[1].set_xlabel('Time (s)')
-    plt.show()
+    
+    if save_path == None:
+        plt.show()
+    else:
+        plt.savefig(f"{save_path}/mae_{temp}.png")
 
 
 
@@ -116,5 +121,27 @@ if __name__ == "__main__":
         print(f'MAE ({temp}): \t{round(np.mean(temp_MAEs)*100, 3)}%')
 
         # Plot estimates
-        plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp)
-        
+        plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=f"./logs/{EXPERIMENT_TOTEST}")
+    
+    # Feature importance analysis
+    df = pd.read_csv(f"./data/data_panasonic_0.0.1.csv", index_col=0)
+    df = df.sample(frac=1, random_state=1).reset_index(drop=True)
+    X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torch.float32)
+    
+    X_sample = X_total[np.random.choice(X_total.shape[0], 1000, replace=False)]
+    explainer = shap.DeepExplainer(model, X_sample)              
+    shap_values = explainer.shap_values(X_sample)
+
+    features = np.array(df.drop(columns=['SoC']).columns)
+    df = pd.DataFrame({
+        "mean_abs_shap": np.mean(np.abs(shap_values), axis=0), 
+        "stdev_abs_shap": np.std(np.abs(shap_values), axis=0), 
+    }, index=features)
+    df.sort_values("mean_abs_shap", ascending=False, inplace=True)
+    print(df)
+    
+    plt.figure()
+    shap.summary_plot(shap_values, X_sample, feature_names=features, plot_size=[10,8], show=False)
+    plt.title("Feature Importance") 
+    plt.savefig(f"./logs/{EXPERIMENT_TOTEST}/feature_importance.png")
+    # plt.show()
