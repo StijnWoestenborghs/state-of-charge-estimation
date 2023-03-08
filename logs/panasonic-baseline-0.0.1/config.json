@@ -1,0 +1,11 @@
+{
+    "experiment_name": "panasonic-baseline-0.0.1",
+    "data_file": "data_panasonic_0.0.1.csv",
+    "validation_pct": 0.2,
+
+    "epochs": 10,
+    "batch_size": 64,
+    "lr": 0.00002,
+    
+    "log_freq": 20
+}

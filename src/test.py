@@ -65,7 +65,7 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
 if __name__ == "__main__":
     
     # Load model
-    EXPERIMENT_TOTEST = "panasonic-initial-0.0.1"
+    EXPERIMENT_TOTEST = "panasonic-baseline-0.0.1"
     model = load_model(experiment_path=f"./logs/{EXPERIMENT_TOTEST}")
     
     #TODO: Same as in preprocess and feature selection (make seperate stage and save preprocessed drive cycle files per experiment)

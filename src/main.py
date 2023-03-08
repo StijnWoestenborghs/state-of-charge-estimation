@@ -10,6 +10,7 @@ import torch.optim as optim
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
+import matplotlib.pyplot as plt
 from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
 from src.utils.utils import check_save_dir, remove_files_with_prefix
@@ -133,13 +134,12 @@ if __name__ == "__main__":
                         torch.save(best_weights, save_dir + f'/best_model_{log_idx}.pt')
     writer.flush()
     writer.close()
-
-    # restore model and return best accuracy
-    import matplotlib.pyplot as plt
-    model.load_state_dict(best_weights)
-    print(f"MSE: {best_loss}")
-    print(f"RMSE:{np.sqrt(best_loss)}")
+    
+    # Plot learning curves
     plt.plot(history_loss_train, label="loss_train")
     plt.plot(history_loss_eval, label="loss_eval")
+    plt.title("Learning curves")
+    plt.ylabel("Loss")
+    plt.xlabel("Step")
     plt.legend()
-    plt.show()
+    plt.savefig(f"{save_dir}/learning_curves.png")

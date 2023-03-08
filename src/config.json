@@ -1,5 +1,5 @@
 {
-    "experiment_name": "panasonic-initial-0.0.1",
+    "experiment_name": "panasonic-baseline-0.0.1",
     "data_file": "data_panasonic_0.0.1.csv",
     "validation_pct": 0.2,
 
