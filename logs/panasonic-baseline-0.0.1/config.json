@@ -7,5 +7,7 @@
     "batch_size": 64,
     "lr": 0.00002,
     
-    "log_freq": 20
+    "log_freq": 20,
+
+    "hyperparameter_tuning": false
 }

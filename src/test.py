@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 import json
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import shap
 import torch
+from tqdm import tqdm
 
 from src.main import Net
 
@@ -73,37 +75,14 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
         plt.show()
     else:
         plt.savefig(f"{save_path}/mae_{temp}.png")
+    plt.close()
 
 
 
-if __name__ == "__main__":
-    
-    # Load model
-    EXPERIMENT_TOTEST = "panasonic-features-0.0.3"
-    
-    features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10']
-    # , 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad'
-    target = ['SoC']
-    with open(f"./logs/{EXPERIMENT_TOTEST}/config.json", 'r') as f:
-        config = json.load(f)
-    model = load_model(experiment_path=f"./logs/{EXPERIMENT_TOTEST}", n_inputs=len(features))
-    
-    #TODO: Same as in preprocess and feature selection (make seperate stage and save preprocessed drive cycle files per experiment)
-    
-    # Panasonic Data
-    panasonic = "./data/Panasonic/Panasonic 18650PF Data"
-    all_temperatures = ["0degC", "-10degC", "-20degC", "10degC", "25degC"]
-    all_test_names = ["HWFET", "LA92", "UDDS", "US06", "Cycle_1", "Cycle_2", "Cycle_3", "Cycle_4", "NN", "HWFTa", "HWFTb"]
-
-    # dropped files are just concats of previous measurements
-    dropped = [
-        '06-01-17_10.36 0degC_LA92_NN_Pan18650PF.mat',
-        '03-27-17_09.06 10degC_US06_HWFET_UDDS_LA92_NN_Pan18650PF.mat',
-        '06-07-17_08.39 n10degC_US06_HWFET_UDDS_LA92_Pan18650PF.mat',
-        '06-23-17_23.35 n20degC_HWFET_UDDS_LA92_NN_Pan18650PF.mat',
-    ]
+def test_model(model, save_path):
 
     # Test all Drive cycles
+    MAE_temp = {}
     for temp in all_temperatures:
         panasonic_dir = panasonic + f"/{temp}" + "/Drive cycles"
         panasonic_files = [f for f in os.listdir(panasonic_dir) if f not in dropped]
@@ -167,15 +146,19 @@ if __name__ == "__main__":
             temp_y_preds += [y_pred.cpu().detach().numpy()]
             times += [time_from_start]
 
-        print(f'MAE ({temp}): \t{round(np.mean(temp_MAEs)*100, 3)}%')
-
-        # Plot estimates
-        plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=f"./logs/{EXPERIMENT_TOTEST}")
+        MAE_temp[temp] = round(np.mean(temp_MAEs)*100, 3)
     
+        # Plot estimates
+        plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=save_path)
+
+    return MAE_temp
+    
+
+def analyse_feature_importance(model, save_path=None):
     # Feature importance analysis
     df = pd.read_csv(f"./data/{config['data_file']}", index_col=0)
     df = df.sample(frac=1, random_state=1).reset_index(drop=True)
-    X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torch.float32)
+    X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torchmodel.float32)
     
     X_sample = X_total[np.random.choice(X_total.shape[0], 1000, replace=False)]
     explainer = shap.DeepExplainer(model, X_sample)              
@@ -192,5 +175,72 @@ if __name__ == "__main__":
     plt.figure()
     shap.summary_plot(shap_values, X_sample, feature_names=features, plot_size=[10,8], show=False)
     plt.title("Feature Importance") 
-    plt.savefig(f"./logs/{EXPERIMENT_TOTEST}/feature_importance.png")
+    plt.savefig(f"{save_path}/feature_importance.png")
     # plt.show()
+    plt.close()
+
+
+
+if __name__ == "__main__":
+    
+    # Load model
+    EXPERIMENT_TOTEST = "panasonic-hyper-0.0.4"
+    
+    features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10']
+    # , 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad'
+    target = ['SoC']
+    with open(f"./logs/{EXPERIMENT_TOTEST}/config.json", 'r') as f:
+        config = json.load(f)
+        
+    # Panasonic Data
+    panasonic = "./data/Panasonic/Panasonic 18650PF Data"
+    all_temperatures = ["0degC", "-10degC", "-20degC", "10degC", "25degC"]
+    all_test_names = ["HWFET", "LA92", "UDDS", "US06", "Cycle_1", "Cycle_2", "Cycle_3", "Cycle_4", "NN", "HWFTa", "HWFTb"]
+
+    # dropped files are just concats of previous measurements
+    dropped = [
+        '06-01-17_10.36 0degC_LA92_NN_Pan18650PF.mat',
+        '03-27-17_09.06 10degC_US06_HWFET_UDDS_LA92_NN_Pan18650PF.mat',
+        '06-07-17_08.39 n10degC_US06_HWFET_UDDS_LA92_Pan18650PF.mat',
+        '06-23-17_23.35 n20degC_HWFET_UDDS_LA92_NN_Pan18650PF.mat',
+    ]
+    
+    
+    if config["hyperparameter_tuning"] == False:
+    
+        experiment_path = f"./logs/{EXPERIMENT_TOTEST}"
+        model = load_model(experiment_path=experiment_path, n_inputs=len(features))
+        
+        # Test the model
+        MAEs = test_model(model=model, save_path=experiment_path)
+        for temp, mae in MAEs.items():
+            print(f'MAE ({temp}): \t{mae}%')
+    
+        # Feature importance analysis
+        analyse_feature_importance(model, save_path=experiment_path)
+        
+    elif config["hyperparameter_tuning"] == True:
+        
+        test_results = []
+        hyper_folders = glob.glob(f"./logs/{EXPERIMENT_TOTEST}/train_*")[0]
+        for trial_folder in tqdm(glob.glob(f"{hyper_folders}/trial_*")):
+            
+            model = load_model(experiment_path=trial_folder, n_inputs=len(features))
+            
+            # Test the model
+            MAEs = test_model(model=model, save_path=trial_folder)
+            
+            # Feature importance analysis
+            # analyse_feature_importance(model, save_path=trial_folder)     # (takes a lot of time)
+            
+            MAEs["trial"] = os.path.basename(trial_folder)
+            
+            test_results += [pd.DataFrame([MAEs])]
+            
+        # combine test results
+        total_df = pd.concat(test_results)
+        total_df['Average_MAE'] = total_df[all_temperatures].mean(axis=1)
+        total_df.set_index("trial", inplace=True)
+
+        total_df.to_csv(f"./logs/{EXPERIMENT_TOTEST}/test_results.csv")
+        
