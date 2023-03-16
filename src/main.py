@@ -1,3 +1,4 @@
+import os
 import json
 import copy
 import shutil
@@ -8,13 +9,17 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 
 import matplotlib.pyplot as plt
 from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
-from src.utils.utils import check_save_dir, remove_files_with_prefix
+from src.utils.utils import *
 
+from ray import tune
+from ray.air import session
+from ray.tune import CLIReporter
+from ray.tune.schedulers import ASHAScheduler, FIFOScheduler
+from functools import partial
 
 
 
@@ -50,35 +55,22 @@ class Net(nn.Module):
         return X
 
 
+    
 
-
-
-
-
-if __name__ == "__main__":
-    # Load experiment config
-    with open("./src/config.json", 'r') as f:
-        config = json.load(f)
-
-    # Define save directory & tensorboard writer
-    save_dir = f"./logs/{config['experiment_name']}"
-    check_save_dir(save_dir)
-    shutil.copy("./src/config.json", f"logs/{config['experiment_name']}/")
+def train(config, save_dir=None, data_dir=None, hyper_enabled=False):
+    # Custom save_dir for during hyperparameter tuning
+    if hyper_enabled:
+        save_dir = session.get_trial_dir()
+    
+    #Initialize tensorboard writer
     writer = SummaryWriter(log_dir=save_dir)
     writer.flush()
 
     # Load data
-    df = pd.read_csv(f"./data/{config['data_file']}", index_col=0)
-    df = df.sample(frac=1, random_state=1).reset_index(drop=True)                   # shuffle rows    
-    df_train, df_val = train_test_split(df, test_size=config['validation_pct'])
-
-    X_train = torch.tensor(df_train.drop(columns=['SoC']).values, dtype=torch.float32)
-    y_train = torch.tensor(df_train['SoC'].values, dtype=torch.float32).reshape(-1, 1)
-    X_val = torch.tensor(df_val.drop(columns=['SoC']).values, dtype=torch.float32)
-    y_val = torch.tensor(df_val['SoC'].values, dtype=torch.float32).reshape(-1, 1)
+    X_train, X_val, y_train, y_val = load_data(config, data_dir=data_dir)
 
     # Initialise model
-    n_inputs = len(df_train.drop(columns=['SoC']).columns)
+    n_inputs = np.shape(X_train)[1]
     model = Net(n_inputs=n_inputs)
     summary(model=model)
     
@@ -126,12 +118,16 @@ if __name__ == "__main__":
                     history_loss_eval.append(float(loss_eval))
                     log_idx += 1
                     model.train()  
-                    # Save best model at log frequenty
+                    # Save best model at log frequency
                     if loss_eval < best_loss:
                         best_loss = loss_eval
                         best_weights = copy.deepcopy(model.state_dict())
                         remove_files_with_prefix(dir=save_dir, prefix="best_model")
                         torch.save(best_weights, save_dir + f'/best_model_{log_idx}.pt')
+                    # Report to tune at log frequency
+                    if hyper_enabled:
+                        tune.report(loss=float(loss), loss_eval=float(loss_eval))
+                
     writer.flush()
     writer.close()
     
@@ -143,3 +139,50 @@ if __name__ == "__main__":
     plt.xlabel("Step")
     plt.legend()
     plt.savefig(f"{save_dir}/learning_curves.png")
+    
+
+
+
+
+
+if __name__ == "__main__":    
+    # Load experiment config
+    data_dir = os.path.abspath("./data")
+    with open("./src/config.json", 'r') as f:
+        config = json.load(f)
+    hyper_config = None
+    if "hyperparameter_tuning" in config.keys():
+        if config["hyperparameter_tuning"] == True:
+            hyper_config = get_hyper_parameter_config(config["hyperparemeters"], config)
+    
+    # Define save directory & 
+    save_dir = os.path.abspath(f"./logs/{config['experiment_name']}")
+    check_save_dir(save_dir)
+    shutil.copy("./src/config.json", f"logs/{config['experiment_name']}/")
+    
+    # Start training 
+    if hyper_config is None:
+        train(save_dir=save_dir, data_dir=data_dir)
+    elif hyper_config is not None:
+        # scheduler = FIFOScheduler()
+        scheduler = ASHAScheduler(
+            metric="loss",
+            mode="min",
+            max_t=config["epochs"],                              # max epochs
+            grace_period=config["hyperparameter_min_epochs"],    # min epochs
+            reduction_factor=2)                                  # punish severity
+        reporter = CLIReporter(
+            parameter_columns=[param for param in config["hyperparemeters"].keys()],
+            metric_columns=["loss", "loss_eval"])
+        
+        def trial_dir_creator(trial):
+            return f"trial_{trial.trial_id}"
+        
+        result = tune.run(
+            partial(train, save_dir=save_dir, data_dir=data_dir, hyper_enabled=True),
+            config=hyper_config,
+            num_samples=hyper_config["hyperparameter_samples"],
+            local_dir=save_dir,
+            scheduler=scheduler,
+            progress_reporter=reporter,
+            trial_dirname_creator=trial_dir_creator)

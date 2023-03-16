@@ -1,12 +1,20 @@
 {
-    "experiment_name": "panasonic-features-0.0.2",
-    "data_file": "data_panasonic_0.0.2.csv",
-    "norm_basis": "norm_basis_0.0.2.json",
+    "experiment_name": "panasonic-hyper-0.0.4",
+
+    "data_file": "data_panasonic_0.0.3.csv",
+    "norm_basis": "norm_basis_0.0.3.json",
     "validation_pct": 0.2,
 
-    "epochs": 30,
+    "epochs": 100,
     "batch_size": 64,
     "lr": 0.00001,
     
-    "log_freq": 20
+    "log_freq": 20,
+
+    "hyperparameter_tuning": true,
+    "hyperparemeters": {
+        "lr": {"type": "loguniform", "info": [1e-6, 1e-2]}
+    },
+    "hyperparameter_samples": 100,
+    "hyperparameter_min_epochs": 50
 }

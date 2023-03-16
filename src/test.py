@@ -79,8 +79,10 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
 if __name__ == "__main__":
     
     # Load model
-    EXPERIMENT_TOTEST = "panasonic-features-0.0.2"
-    features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10', 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad']
+    EXPERIMENT_TOTEST = "panasonic-features-0.0.3"
+    
+    features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10']
+    # , 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad'
     target = ['SoC']
     with open(f"./logs/{EXPERIMENT_TOTEST}/config.json", 'r') as f:
         config = json.load(f)
@@ -133,10 +135,10 @@ if __name__ == "__main__":
             df_file["Power"] = df_file["Voltage"]*df_file["Current"]
 
             # Derivatives
-            df_file["Voltage_grad"] = symmetric_derivative(df_file["Voltage"], df_file["Time"])
-            df_file["Current_grad"] = symmetric_derivative(df_file["Current"], df_file["Time"])
-            df_file["Battery_Temp_grad"] = symmetric_derivative(df_file["Battery_Temp_degC"], df_file["Time"])
-            df_file["Power_grad"] = symmetric_derivative(df_file["Power"], df_file["Time"])
+            # df_file["Voltage_grad"] = symmetric_derivative(df_file["Voltage"], df_file["Time"])
+            # df_file["Current_grad"] = symmetric_derivative(df_file["Current"], df_file["Time"])
+            # df_file["Battery_Temp_grad"] = symmetric_derivative(df_file["Battery_Temp_degC"], df_file["Time"])
+            # df_file["Power_grad"] = symmetric_derivative(df_file["Power"], df_file["Time"])
             
             # Feature selection
             df_file = df_file.drop(['Chamber_Temp_degC'], axis=1)
