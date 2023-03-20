@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
 from src.utils.utils import *
+from src.models import Net, DynamicNet
 
 from ray import tune
 from ray.air import session
@@ -23,36 +24,6 @@ from functools import partial
 
 
 
-class Net(nn.Module):
-    def __init__(self, n_inputs):
-        super(Net, self).__init__()
-        # input to first hidden layer
-        self.hidden1 = nn.Linear(n_inputs, 16)
-        self.act1 = nn.ReLU()
-        # second hidden layer
-        self.hidden2 = nn.Linear(16, 32)
-        self.act2 = nn.ReLU()
-        # third hidden layer
-        self.hidden3 = nn.Linear(32, 16)
-        self.act3 = nn.ReLU()
-        # output layer
-        self.hidden4 = nn.Linear(16, 1)
-        self.act4 = nn.Sigmoid()
- 
-    def forward(self, X):
-        # input to first hidden layer
-        X = self.hidden1(X)
-        X = self.act1(X)
-         # second hidden layer
-        X = self.hidden2(X)
-        X = self.act2(X)
-        # third hidden layer
-        X = self.hidden3(X)
-        X = self.act3(X)
-        # output layer
-        X = self.hidden4(X)
-        X = self.act4(X)
-        return X
 
 
     
@@ -71,7 +42,15 @@ def train(config, save_dir=None, data_dir=None, hyper_enabled=False):
 
     # Initialise model
     n_inputs = np.shape(X_train)[1]
-    model = Net(n_inputs=n_inputs)
+    if config["model"] == "Baseline":
+        model = Net(n_inputs=n_inputs)
+    if config["model"] == "DynamicDNN":    
+        if config["hyperparameter_tuning"] == True:
+            # overwrite "model_layer_sizes" for DynamicDNN parameter optimization
+            config["model_layer_sizes"] = sample_layer_sizes(config["n_layers"], config["layer_size_choices"])
+            with open(save_dir + "params.json", "w") as f:
+                json.dump(config, f, indent=4)
+        model = DynamicNet(n_inputs=n_inputs, layer_sizes=config["model_layer_sizes"])
     summary(model=model)
     
     # Loss function and Optimizer

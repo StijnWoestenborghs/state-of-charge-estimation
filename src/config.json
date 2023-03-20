@@ -1,20 +1,24 @@
 {
-    "experiment_name": "panasonic-hyper-0.0.4",
+    "experiment_name": "panasonic-hyper-0.0.5",
 
     "data_file": "data_panasonic_0.0.3.csv",
     "norm_basis": "norm_basis_0.0.3.json",
     "validation_pct": 0.2,
 
+    "model": "DynamicDNN",
+    "model_layer_sizes": [16, 32, 16],
+
     "epochs": 100,
     "batch_size": 64,
-    "lr": 0.00001,
+    "lr": 0.005374,
     
     "log_freq": 20,
 
     "hyperparameter_tuning": true,
     "hyperparemeters": {
-        "lr": {"type": "loguniform", "info": [1e-6, 1e-2]}
+        "n_layers": {"type": "randint", "info": [2, 10]}
     },
-    "hyperparameter_samples": 100,
+    "layer_size_choices": [16, 32, 64, 128, 256],
+    "hyperparameter_samples": 2,
     "hyperparameter_min_epochs": 50
 }

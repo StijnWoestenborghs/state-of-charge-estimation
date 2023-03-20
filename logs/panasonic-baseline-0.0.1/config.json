@@ -3,6 +3,8 @@
     "data_file": "data_panasonic_0.0.1.csv",
     "validation_pct": 0.2,
 
+    "model": "Baseline",
+    
     "epochs": 10,
     "batch_size": 64,
     "lr": 0.00002,

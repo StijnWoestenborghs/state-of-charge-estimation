@@ -1,9 +1,10 @@
 import os
 import sys
 import shutil
+import numpy as np
+import pandas as pd
 
 import torch
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from ray import tune
@@ -61,20 +62,55 @@ def load_data(config, data_dir):
     return X_train, X_val, y_train, y_val
 
 
+
+def sample_layer_sizes(n_layers, layer_size_choices):
+    
+    # Constraint: increasing size to midpoint and decreasing size to output layer
+    mid_point = n_layers // 2
+    
+    increasing_sizes = [int(np.random.choice(layer_size_choices)) for _ in range(mid_point)]
+    increasing_sizes.sort()
+    
+    decreasing_sizes = [int(np.random.choice(layer_size_choices)) for _ in range(n_layers - mid_point)]
+    decreasing_sizes.sort(reverse=True)
+    
+    layer_sizes = increasing_sizes + decreasing_sizes
+
+    return layer_sizes
+
+
 def get_hyper_parameter_config(hyper_dict, config):
     """
     Allowed types: 
-        - loguniform --> info = [lower_bound, upper_bound]
-        - TODO: extend allowed types
+        - uniform (continuous)          --> info = [min, max]
+        - randint (uniform discrete)    --> info = [min, max]
+        - loguniform (continuous)       --> info = [min, max]
+        - quniform (continuous)         --> info = [min, max, q]  (round to sample to nearest multiple of q)
+        - qloguniform (continuous)      --> info = [min, max, q]  (round to sample to nearest multiple of q)
+        - choise                        --> info = [list of choices]
+        - grid_search                   --> info = [list of values]     (go over all the provided values sequentially)
+        - sample_from                   --> info = function()
     """
     
     hyper_config = {}
     for param, spec in hyper_dict.items():
+        if spec["type"] == "unifrom":
+            hyper_config[param] = tune.uniform(spec["info"][0], spec["info"][1])
+        if spec["type"] == "randint":
+            hyper_config[param] = tune.randint(spec["info"][0], spec["info"][1])
         if spec["type"] == "loguniform":
             hyper_config[param] = tune.loguniform(spec["info"][0], spec["info"][1])
-        # TODO: extend this
-        
+        if spec["type"] == "quniform":
+            hyper_config[param] = tune.quniform(spec["info"][0], spec["info"][1], spec["info"][2])
+        if spec["type"] == "qloguniform":
+            hyper_config[param] = tune.qloguniform(spec["info"][0], spec["info"][1], spec["info"][2])
+        if spec["type"] == "choise":
+            hyper_config[param] = tune.choise(spec["info"])
+        if spec["type"] == "grid_search":
+            hyper_config[param] = tune.grid_search(spec["info"])            
+    
     # extend with fixed config parameters
+    # make sure the hyperparameter is already in hyper_config!
     for key, value in config.items():
         if key not in hyper_config.keys():
             hyper_config[key] = value

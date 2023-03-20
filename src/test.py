@@ -11,7 +11,7 @@ import shap
 import torch
 from tqdm import tqdm
 
-from src.main import Net
+from src.models import Net, DynamicNet
 
 
 def read_mat_file(file):
@@ -48,7 +48,12 @@ def load_model(experiment_path, n_inputs):
         model_path = experiment_path + '/' + torch_models[0]
 
     # loading model
-    model = Net(n_inputs=n_inputs)
+    if config["model"] == "Baseline":
+        model = Net(n_inputs=n_inputs)
+    if config["model"] == "DynamicDNN":    
+        with open(experiment_path + "/params.json", "r") as f:
+            params = json.load(f)
+        model = DynamicNet(n_inputs=n_inputs, layer_sizes=params["model_layer_sizes"])
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -184,7 +189,7 @@ def analyse_feature_importance(model, save_path=None):
 if __name__ == "__main__":
     
     # Load model
-    EXPERIMENT_TOTEST = "panasonic-hyper-0.0.4"
+    EXPERIMENT_TOTEST = "panasonic-hyper-0.0.5"
     
     features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10']
     # , 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad'
