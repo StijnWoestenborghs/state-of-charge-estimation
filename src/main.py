@@ -141,7 +141,7 @@ if __name__ == "__main__":
     
     # Start training 
     if hyper_config is None:
-        train(save_dir=save_dir, data_dir=data_dir)
+        train(config, save_dir=save_dir, data_dir=data_dir)
     elif hyper_config is not None:
         # scheduler = FIFOScheduler()
         scheduler = ASHAScheduler(

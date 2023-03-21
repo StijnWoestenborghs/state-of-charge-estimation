@@ -50,10 +50,13 @@ def load_model(experiment_path, n_inputs):
     # loading model
     if config["model"] == "Baseline":
         model = Net(n_inputs=n_inputs)
-    if config["model"] == "DynamicDNN":    
-        with open(experiment_path + "/params.json", "r") as f:
-            params = json.load(f)
-        model = DynamicNet(n_inputs=n_inputs, layer_sizes=params["model_layer_sizes"])
+    if config["model"] == "DynamicDNN":
+        if config["hyperparameter_tuning"]:
+            with open(experiment_path + "/params.json", "r") as f:
+                layer_sizes = json.load(f)["model_layer_sizes"]
+        else:
+            layer_sizes = config["model_layer_sizes"]
+        model = DynamicNet(n_inputs=n_inputs, layer_sizes=layer_sizes)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -68,8 +71,8 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
         ax[0].set_ylabel("SOC \n(%)")
         ax[0].legend()
 
-        ax[1].plot(time, (y_test-y_pred)/y_test*100)
-        ax[1].set_ylabel("SOC \nerror \n(%)")
+        ax[1].plot(time, (y_test-y_pred)*100)
+        ax[1].set_ylabel("SOC \n Error \n (SOC %)")
     
         ax[0].text(-0.15, 0.5, f"{label} \nMAE: {round(MAE*100, 2)}%", va='center', ha='right', rotation='horizontal', transform=ax[0].transAxes, fontweight='bold')
 
@@ -82,6 +85,36 @@ def plot_estimates(y_tests, y_preds, times, MAEs, labels, temp, save_path=None):
         plt.savefig(f"{save_path}/mae_{temp}.png")
     plt.close()
 
+
+def plot_error_distribution(y_tests, y_preds, temp, save_path=None):
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    ax.set_title(f"Error distribution ({temp})")
+    errors = np.array([])
+    for y_test, y_pred in zip(y_tests, y_preds):
+        errors = np.append(errors, (y_test-y_pred)*100)
+
+    n, bin_edges, _ = plt.hist(errors, bins=int(len(errors)/3000), color='darkorange', alpha=1)
+    
+    # Running average
+    window_size = 5
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    window = np.ones(window_size) / window_size
+    running_average = np.convolve(n, window, mode='valid')
+    running_average_bin_centers = bin_centers[:-(window_size-1)]
+    plt.plot(running_average_bin_centers, running_average, color='black', linestyle='-', linewidth=2, label='Running Average')
+    
+    plt.xlabel("SoC Error (%)")
+    plt.ylabel("Count")
+    
+    plt.grid(alpha=0.3)
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    
+    if save_path == None:
+        plt.show()
+    else:
+        plt.savefig(f"{save_path}/error_distribution_{temp}.png")
+    plt.close()
 
 
 def test_model(model, save_path):
@@ -155,6 +188,9 @@ def test_model(model, save_path):
     
         # Plot estimates
         plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=save_path)
+        
+        # Plot error distribution
+        plot_error_distribution(temp_y_tests, temp_y_preds, temp, save_path=save_path)
 
     return MAE_temp
     
@@ -163,7 +199,7 @@ def analyse_feature_importance(model, save_path=None):
     # Feature importance analysis
     df = pd.read_csv(f"./data/{config['data_file']}", index_col=0)
     df = df.sample(frac=1, random_state=1).reset_index(drop=True)
-    X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torchmodel.float32)
+    X_total = torch.tensor(df.drop(columns=['SoC']).values, dtype=torch.float32)
     
     X_sample = X_total[np.random.choice(X_total.shape[0], 1000, replace=False)]
     explainer = shap.DeepExplainer(model, X_sample)              
@@ -189,7 +225,7 @@ def analyse_feature_importance(model, save_path=None):
 if __name__ == "__main__":
     
     # Load model
-    EXPERIMENT_TOTEST = "panasonic-hyper-0.0.5"
+    EXPERIMENT_TOTEST = "panasonic-baseline-0.1.0"
     
     features = ['Voltage', 'Current', 'Power', 'Battery_Temp_degC', 'Voltage_MA1000', 'Current_MA1000', 'Voltage_MA400', 'Current_MA400', 'Voltage_MA200', 'Current_MA200', 'Voltage_MA100', 'Current_MA100', 'Voltage_MA50', 'Current_MA50', 'Voltage_MA10', 'Current_MA10']
     # , 'Voltage_grad', 'Current_grad', 'Battery_Temp_grad', 'Power_grad'
