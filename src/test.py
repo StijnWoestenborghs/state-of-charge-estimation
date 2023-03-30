@@ -126,7 +126,7 @@ def test_model(model, save_path):
         panasonic_files = [f for f in os.listdir(panasonic_dir) if f not in dropped]
         labels = [label for file in panasonic_files for label in all_test_names if label in file]
 
-        temp_MAEs, temp_y_tests, temp_y_preds, times = [], [], [], []
+        temp_MAEs, temp_RMSEs, temp_y_tests, temp_y_preds, times = [], [], [], [], []
         for (file, label) in zip(panasonic_files, labels):           
             df_file = read_mat_file(sio.loadmat(panasonic_dir + "/" + file))
             
@@ -179,13 +179,18 @@ def test_model(model, save_path):
 
             # Calculate performance
             MAE = torch.mean(torch.abs(y_test - y_pred))
+            RMSE = torch.sqrt(torch.mean((y_test - y_pred) ** 2))
             temp_MAEs += [float(MAE)]
+            temp_RMSEs += [float(RMSE)]
             temp_y_tests += [y_test.cpu().detach().numpy()]
             temp_y_preds += [y_pred.cpu().detach().numpy()]
             times += [time_from_start]
+            
+            
+        print(f"Temp: {temp}, MAE: {round(np.mean(temp_MAEs)*100, 3)}, RMSE: {round(np.mean(temp_RMSEs)*100, 3)}")
 
         MAE_temp[temp] = round(np.mean(temp_MAEs)*100, 3)
-    
+        
         # Plot estimates
         plot_estimates(temp_y_tests, temp_y_preds, times, temp_MAEs, labels, temp, save_path=save_path)
         
