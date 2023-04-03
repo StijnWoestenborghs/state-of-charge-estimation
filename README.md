@@ -20,12 +20,11 @@ Pyenv installation depends on the OS used:
 > - Switching the global python version: `pyenv install 3.9.13`, `pyenv global 3.9.13`
 
 2. All the necessary data for this project has been added in git via [Git Large File Storage](https://git-lfs.github.com/). After cloning the project, make sure to first unpack that data: 
-Standardize python version across projects
 > - `git lfs install`  
 > - `git lfs pull`
 
 ### Configure project setup
-A virtual environment with all required packages is created by the simple command:
+A virtual environment with all required packages is created by the simple command:  
 (Note: MacOS users replace `. .venv/Scripts/activate` with `. .venv/bin/activate` in the makefile)
 > - `make setup` (make sure to use a bash-like shell or follow similar commands)
 
@@ -34,7 +33,7 @@ A virtual environment with all required packages is created by the simple comman
 
 Initial discovery of the data is done in `notebooks/`.
 
-Training is initiated by a configuration file `src/config.json`. This way of working allows for easy tracking of experiments. All logs of an experiment can be found in `logs/<experiment_name>`. 
+Training is initiated by a configuration file `src/config.json`. This way of working allows for easy tracking of experiments. All logs of an experiment can be found in `logs/` and can be analysed with tensorboard using `tensorboard --logdir logs/<experiment_name>`.
 
 1. **Training**
 
