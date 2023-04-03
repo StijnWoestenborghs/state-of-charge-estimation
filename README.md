@@ -1,27 +1,46 @@
-# state of charge estimation
+<h1 align='center'><b>State of Charge Estimation</b></h1>
 
-## Prerequisit 1: Menaging python versions with pyenv
-No need to customise env path variables and easily switch between python versions
-- Windows: "choco install pyenv-win"
-- Switching the global python version: "pyenv install 3.9.13", "pyenv global 3.9.13"
+<p align='center'>
+    __
+</p>
 
+<p align='center'>
+    The rising efficiency and energy density of Li-ion batteries is driving an exciting wave of innovation, which not only accelerates adoption, but also enables new technologies with an even greater impact. Needless to say that an accurate State of Charge estimation is vital.
+</p>
+
+## Project setup
+
+### Prerequisit
+1. Python versions and virtual environments are controlled with (the very convenient) [pyenv](https://github.com/pyenv/pyenv). Pyenv installation depends on the OS used:
+> - MacOS: `brew install pyenv`
+> - Windows: `choco install pyenv-win` (or follow [pyenv-win](https://github.com/pyenv-win/pyenv-win))
+> - Switching the global python version: `pyenv install 3.9.13`, `pyenv global 3.9.13`
+
+2. All the necessary data for this project has been added in git via [Git Large File Storage](https://git-lfs.github.com/). After cloning the project, make sure to first unpack that data: 
 Standardize python version across projects
-- When there is a .python-version file inside the current directory "python --version" will switch regardless of the global python
+>
+>    `git lfs install`
+>    `git lfs pull`
 
-## Prerequisit 2: Creating virtual environment
-The whole setup can is controlled and virtualenvs are controlled in a makefile
-- Windows (Run in git bash terminal): "make setup"
-After this point the interpreter of the IDE of your choise to the new python venv
+### Configure project setup
+(Note: MacOS users replace `. .venv/Scripts/activate` with `. .venv/bin/activate` in the makefile)
 
-TIP: Activating virtual environment using alias
-- Windows: (install nano: "choco install nano")
-    Git bash:
-    - "touch ~/.bashrc"
-    - "nano ~/.bashrc" to include 'alias pyact=". .venv/Scripts/activate" '
+A virtual environment with all required packages is created by the simple command:
+- `make setup` (make sure to use a bash-like shell or follow similar commands)
 
-    Alternative Powershell 
-    - "nano $profile" to include: "set-alias -Name pyact -Value .venv/Scripts/activate"
 
-## Prerequisit 3: Seting up Git LFS
-- download from: https://git-lfs.com/
-- run "git lfs install"
+## State of Charge Estimation
+
+Initial discovery of the data is done in `notebooks/`.
+
+Training is initiated by a configuration file `src/config.json`. This way of working allows for easy tracking of experiments. All logs of an experiment can be found in `logs/<experiment_name>`. 
+
+1. **Training**
+
+> Make sure you have configured the right settings in the configuration file. Note that different DNN architectures can be found in `src/models.py`.
+> `make train`
+
+2. **Test**
+
+> Test the model performance of a given experiment for some unique Drive Cycles.
+> `make test`

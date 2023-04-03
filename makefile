@@ -16,3 +16,6 @@ clean-pyc:
 
 train:
 	. .venv/Scripts/activate && python -m src.main
+
+test:
+	. .venv/Scripts/activate && python -m src.test
