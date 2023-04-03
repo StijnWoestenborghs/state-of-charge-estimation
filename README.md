@@ -13,21 +13,21 @@
 ## Project setup
 
 ### Prerequisit
-1. Python versions and virtual environments are controlled with (the very convenient) [pyenv](https://github.com/pyenv/pyenv). Pyenv installation depends on the OS used:
-- MacOS: `brew install pyenv`
-- Windows: `choco install pyenv-win` (or follow [pyenv-win](https://github.com/pyenv-win/pyenv-win))
-- Switching the global python version: `pyenv install 3.9.13`, `pyenv global 3.9.13`
+1. Python versions and virtual environments are controlled with (the very convenient) [pyenv](https://github.com/pyenv/pyenv).  
+Pyenv installation depends on the OS used:
+> - MacOS: `brew install pyenv`
+> - Windows: `choco install pyenv-win` (or follow [pyenv-win](https://github.com/pyenv-win/pyenv-win))
+> - Switching the global python version: `pyenv install 3.9.13`, `pyenv global 3.9.13`
 
 2. All the necessary data for this project has been added in git via [Git Large File Storage](https://git-lfs.github.com/). After cloning the project, make sure to first unpack that data: 
 Standardize python version across projects
-- `git lfs install`  
-- `git lfs pull`
+> - `git lfs install`  
+> - `git lfs pull`
 
 ### Configure project setup
-(Note: MacOS users replace `. .venv/Scripts/activate` with `. .venv/bin/activate` in the makefile)
-
 A virtual environment with all required packages is created by the simple command:
-- `make setup` (make sure to use a bash-like shell or follow similar commands)
+(Note: MacOS users replace `. .venv/Scripts/activate` with `. .venv/bin/activate` in the makefile)
+> - `make setup` (make sure to use a bash-like shell or follow similar commands)
 
 
 ## State of Charge Estimation
@@ -39,9 +39,9 @@ Training is initiated by a configuration file `src/config.json`. This way of wor
 1. **Training**
 
 > Make sure you have configured the right settings in the configuration file. Note that different DNN architectures can be found in `src/models.py`.  
-> `make train`
+> - `make train`
 
 2. **Test**
 
 > Test the model performance of a given experiment for some unique Drive Cycles.  
-> `make test`
+> - `make test`
